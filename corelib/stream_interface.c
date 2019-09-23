@@ -188,7 +188,7 @@ static int extract_files(int fd, struct swupdate_cfg *software)
 					break;
 			}
 
-			TRACE("Found file:\n\tfilename %s\n\tsize %u %s",
+			TRACE("RD:Found file:\n\tfilename %s\n\tsize %u %s",
 				fdh.filename,
 				(unsigned int)fdh.size,
 				(skip == SKIP_FILE ? "Not required: skipping" : "required"));
@@ -229,7 +229,7 @@ static int extract_files(int fd, struct swupdate_cfg *software)
 				}
 				break;
 			case INSTALL_FROM_STREAM:
-				TRACE("Installing STREAM %s, %lld bytes", img->fname, img->size);
+				TRACE("RD:Installing STREAM %s, %lld bytes", img->fname, img->size);
 
 				/*
 				 * If this is the first image to be directly installed, set transaction flag
