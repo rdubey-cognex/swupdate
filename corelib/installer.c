@@ -228,6 +228,7 @@ int install_single_image(struct img_type *img)
 	TRACE("RD:Found installer for stream %s %s", img->fname, hnd->desc);
 
 	swupdate_progress_inc_step(img->fname);
+	TRACE("RD:crossed swupdate_progress_incstep");
 
 	/* TODO : check callback to push results / progress */
 	ret = hnd->installer(img, hnd->data);
@@ -237,6 +238,7 @@ int install_single_image(struct img_type *img)
 	}
 
 	swupdate_progress_step_completed();
+	TRACE("RD:crossed swupdate_progress_completed");
 
 	return ret;
 }
