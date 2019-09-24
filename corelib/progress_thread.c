@@ -128,11 +128,17 @@ void swupdate_progress_inc_step(char *image)
 
 void swupdate_progress_step_completed(void)
 {
+	TRACE("RD:1");
 	struct swupdate_progress *prbar = &progress;
 	pthread_mutex_lock(&prbar->lock);
+	TRACE("RD:2");
+
 	prbar->step_running = false;
 	prbar->msg.status = IDLE;
 	pthread_mutex_unlock(&prbar->lock);
+	
+	TRACE("RD:3");
+
 }
 
 void swupdate_progress_end(RECOVERY_STATUS status)

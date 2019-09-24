@@ -232,6 +232,8 @@ int install_single_image(struct img_type *img)
 
 	/* TODO : check callback to push results / progress */
 	ret = hnd->installer(img, hnd->data);
+	TRACE("returned:%d",ret);
+
 	if (ret != 0) {
 		TRACE("Installer for %s not successful !",
 			hnd->desc);
