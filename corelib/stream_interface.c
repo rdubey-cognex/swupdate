@@ -187,7 +187,7 @@ static int extract_files(int fd, struct swupdate_cfg *software)
 					break;
 			}
 
-			TRACE("Found file:\n\tfilename %s\n\tsize %u %s",
+			TRACE("RD:Found file:\n\tfilename %s\n\tsize %u %s",
 				fdh.filename,
 				(unsigned int)fdh.size,
 				(skip == SKIP_FILE ? "Not required: skipping" : "required"));
@@ -251,7 +251,7 @@ static int extract_files(int fd, struct swupdate_cfg *software)
 					ERROR("Error streaming %s", img->fname);
 					return -1;
 				}
-				TRACE("END INSTALLING STREAMING");
+				TRACE("RD:END INSTALLING STREAMING");
 				break;
 			}
 
