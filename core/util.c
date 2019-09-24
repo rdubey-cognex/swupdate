@@ -14,16 +14,7 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <sys/time.h>
-#include <sys/uio.h>
 #include <dirent.h>
-#include <limits.h>
-#include <time.h>
-#include <libgen.h>
-#include <regex.h>
-
 #include "swupdate.h"
 #include "util.h"
 #include "generated/autoconf.h"
@@ -31,10 +22,12 @@
 /*
  * key  is 256 bit for aes_256
  * ivt  is 128 bit
+ * salt is  64 bit
  */
 struct decryption_key {
 	unsigned char key[32];
 	unsigned char ivt[16];
+	unsigned char salt[8];
 };
 
 static struct decryption_key *aes_key = NULL;
@@ -134,91 +127,15 @@ void freeargs (char **argv)
 	}
 }
 
-/*
- * Concatente array of strings in a single string
- * The allocated string must be freed by the caller
- * delim can be used to separate substrings
- */
-char *mstrcat(const char **nodes, const char *delim)
-{
-	const char **node;
-	char *dest = NULL, *buf = NULL;
-
-	if (!delim)
-		delim = "";
-	for (node = nodes; *node != NULL; node++) {
-		/* first run, just copy first entry */
-		if (!dest) {
-			dest = strdup(*node);
-			if (!dest)
-				return NULL;
-		} else {
-			if (asprintf(&buf, "%s%s%s", dest, delim, *node) ==
-				ENOMEM_ASPRINTF) {
-				ERROR("Path too long, OOM");
-				free(dest);
-				return NULL;
-			}
-
-			/*
-			 * Free previous concatenated string
-			 */
-			free(dest);
-			dest = buf;
-		}
-	}
-	return dest;
-}
-
-/*
- * Alocate and return a string as part of
- * another string
- * s = substring(src, n)
- * the returned string is allocated on the heap
- * and must be freed by the caller
- */
-char *substring(const char *src, int first, int len) {
-	char *s;
-	if (len > strlen(src))
-		len = strlen(src);
-	if (first > len)
-		return NULL;
-	s = malloc(len + 1);
-	if (!s)
-		return NULL;
-	memcpy(s, &src[first], len);
-	s[len] = '\0';
-	return s;
-}
-
-
 int openfileoutput(const char *filename)
 {
 	int fdout;
 
 	fdout = open(filename, O_CREAT | O_WRONLY | O_TRUNC,  S_IRUSR | S_IWUSR );
 	if (fdout < 0)
-		ERROR("I cannot open %s %d", filename, errno);
+		ERROR("I cannot open %s %d\n", filename, errno);
 
 	return fdout;
-}
-
-int mkpath(char *dir, mode_t mode)
-{
-	if (!dir) {
-		return -EINVAL;
-	}
-
-	if (strlen(dir) == 1 && dir[0] == '/')
-		return 0;
-
-	mkpath(dirname(strdupa(dir)), mode);
-
-	if (mkdir(dir, mode) == -1) {
-		if (errno != EEXIST)
-			return 1;
-	}
-	return 0;
 }
 
 /*
@@ -261,7 +178,7 @@ int get_hw_revision(struct hw_type *hw)
 	fclose(fp);
 
 	if (ret != 2) {
-		TRACE("Cannot find Board Revision");
+		TRACE("Cannot find Board Revision\n");
 		if(ret == 1)
 			free(b1);
 		return -1;
@@ -282,47 +199,6 @@ int get_hw_revision(struct hw_type *hw)
 	return 0;
 }
 
-/**
- * hwid_match - try to match a literal or RE hwid
- * @rev: literal or RE specification
- * @hwrev: current HW revision
- *
- * Return: 0 if match found, non-zero otherwise
- */
-int hwid_match(const char* rev, const char* hwrev)
-{
-	int ret, prefix_len;
-	char errbuf[256];
-	regex_t re;
-	const char *re_str;
-
-	prefix_len = strlen(HWID_REGEXP_PREFIX);
-
-	/* literal revision */
-	if (strncmp(rev, HWID_REGEXP_PREFIX, prefix_len)) {
-		ret = strcmp(rev, hwrev);
-		goto out;
-	}
-
-	/* regexp revision */
-	re_str = rev+prefix_len;
-
-	if ((ret = regcomp(&re, re_str, REG_EXTENDED|REG_NOSUB)) != 0) {
-		regerror(ret, &re, errbuf, sizeof(errbuf));
-		ERROR("error in regexp %s: %s", re_str, errbuf);
-		goto out;
-	}
-
-	if ((ret = regexec(&re, hwrev, 0, NULL, 0)) == 0)
-		TRACE("hwrev %s matched by regexp %s", hwrev, re_str);
-	else
-		TRACE("no match of hwrev %s with regexp %s", hwrev, re_str);
-
-	regfree(&re);
-out:
-	return ret;
-}
-
 /*
  * The HW revision of the board *MUST* be inserted
  * in the sw-description file
@@ -339,8 +215,8 @@ int check_hw_compatibility(struct swupdate_cfg *cfg)
 
 	TRACE("Hardware %s Revision: %s", cfg->hw.boardname, cfg->hw.revision);
 	LIST_FOREACH(hw, &cfg->hardware, next) {
-		if (hw &&
-		    (!hwid_match(hw->revision, cfg->hw.revision))) {
+		if (hw && strlen(hw->revision) == strlen(cfg->hw.revision) &&
+				(!strcmp(hw->revision, cfg->hw.revision))) {
 			TRACE("Hardware compatibility verified");
 			return 0;
 		}
@@ -380,14 +256,14 @@ from_ascii (char const *where, size_t digs, unsigned logbase)
 		char *p = strchr (codetab, toupper (*buf));
 		if (!p)
 		{
-			ERROR("Malformed number %.*s", (int)digs, where);
+			ERROR("Malformed number %.*s\n", (int)digs, where);
 			break;
 		}
 
 		d = p - codetab;
 		if ((d >> logbase) > 1)
 		{
-			ERROR("Malformed number %.*s", (int)digs, where);
+			ERROR("Malformed number %.*s\n", (int)digs, where);
 			break;
 		}
 		value += d;
@@ -397,7 +273,7 @@ from_ascii (char const *where, size_t digs, unsigned logbase)
 		value <<= logbase;
 	}
 	if (overflow)
-		ERROR("Archive value %.*s is out of range",
+		ERROR("Archive value %.*s is out of range\n",
 			(int)digs, where);
 	return value;
 }
@@ -478,22 +354,26 @@ int count_elem_list(struct imglist *list)
 int load_decryption_key(char *fname)
 {
 	FILE *fp;
-	char *b1 = NULL, *b2 = NULL;
+	char *b1 = NULL, *b2 = NULL, *b3 = NULL;
 	int ret;
 
 	fp = fopen(fname, "r");
 	if (!fp)
 		return -EBADF;
 
-	ret = fscanf(fp, "%ms %ms", &b1, &b2);
+	ret = fscanf(fp, "%ms %ms %ms", &b1, &b2, &b3);
 	switch (ret) {
 		case 2:
+			b3 = NULL;
 			DEBUG("Read decryption key and initialization vector from file %s.", fname);
+			break;
+		case 3:
+			DEBUG("Read decryption key, initialization vector, and salt from file %s.", fname);
 			break;
 		default:
 			if (b1 != NULL)
 				free(b1);
-			fprintf(stderr, "File with decryption key is not in the format <key> <ivt>\n");
+			fprintf(stderr, "File with decryption key is not in the format <key> <ivt> nor <key> <ivt> <salt>\n");
 			fclose(fp);
 			return -EINVAL;
 	}
@@ -507,12 +387,15 @@ int load_decryption_key(char *fname)
 		return -ENOMEM;
 
 	ret = ascii_to_bin(aes_key->key,  b1, sizeof(aes_key->key)  * 2) |
-	      ascii_to_bin(aes_key->ivt,  b2, sizeof(aes_key->ivt)  * 2);
+	      ascii_to_bin(aes_key->ivt,  b2, sizeof(aes_key->ivt)  * 2) |
+	      ascii_to_bin(aes_key->salt, b3, sizeof(aes_key->salt) * 2);
 
 	if (b1 != NULL)
 		free(b1);
 	if (b2 != NULL)
 		free(b2);
+	if (b3 != NULL)
+		free(b3);
 
 	if (ret) {
 		fprintf(stderr, "Keys are invalid\n");
@@ -534,18 +417,21 @@ unsigned char *get_aes_ivt(void) {
 	return aes_key->ivt;
 }
 
-char** string_split(const char* in, const char d)
+unsigned char *get_aes_salt(void) {
+	if (!aes_key)
+		return NULL;
+	return aes_key->salt;
+}
+
+char** string_split(char* s, const char d)
 {
 	char** result    = 0;
 	size_t count     = 0;
+	char* tmp        = s;
 	char* last_delim = 0;
 	char delim[2];
 	delim[0] = d;
 	delim[1] = 0;
-	char *s = strdup(in);
-	char* tmp        = s;
-	if (!s)
-		return NULL;
 
 	/* Count how many elements will be extracted. */
 	while (*tmp)
@@ -580,54 +466,14 @@ char** string_split(const char* in, const char d)
 	    *(result + idx) = 0;
 	}
 
-	free(s);
-
 	return result;
 }
 
-/*
- * Count number of elements in an array of strings
- * Last item must have a NULL terminator
- */
-unsigned int count_string_array(const char **nodes)
+unsigned long long ustrtoull(const char *cp, char **endp, unsigned int base)
 {
-	const char **iter = nodes;
-	int count = 0;
+	unsigned long long result = strtoull(cp, endp, base);
 
-	while (*iter != NULL) {
-		iter++;
-		count++;
-	}
-	return count;
-}
-
-void free_string_array(char **nodes)
-{
-	char **iter;
-	if (!nodes)
-		return;
-	for (iter = nodes; *iter != NULL; iter++)
-		free(*iter);
-	free(nodes);
-}
-
-unsigned long long ustrtoull(const char *cp, unsigned int base)
-{
-	errno = 0;
-	char *endp = NULL;
-
-	if (strnlen(cp, MAX_SEEK_STRING_SIZE) == 0) {
-		return 0;
-	}
-
-	unsigned long long result = strtoull(cp, &endp, base);
-
-	if (cp == endp || (result == ULLONG_MAX && errno == ERANGE)) {
-		errno = ERANGE;
-		return 0;
-	}
-
-	switch (*endp) {
+	switch (**endp) {
 	case 'G':
 		result *= 1024;
 		/* fall through */
@@ -637,99 +483,12 @@ unsigned long long ustrtoull(const char *cp, unsigned int base)
 	case 'K':
 	case 'k':
 		result *= 1024;
-		if (endp[1] == 'i') {
-			if (endp[2] == 'B')
-				endp += 3;
+		if ((*endp)[1] == 'i') {
+			if ((*endp)[2] == 'B')
+				(*endp) += 3;
 			else
-				endp += 2;
+				(*endp) += 2;
 		}
 	}
 	return result;
-}
-
-int swupdate_mount(const char *device, const char *dir, const char *fstype)
-{
-#if defined(__linux__)
-	return mount(device, dir, fstype, 0, NULL);
-#elif defined(__FreeBSD__)
-	int iovlen = 8;
-	struct iovec iov[iovlen];
-	int mntflags = 0;
-	char errmsg[255];
-	memset(errmsg, 0, sizeof(errmsg));
-	iov[0].iov_base = (void*)"fstype";
-	iov[0].iov_len = strlen("fstype") + 1;
-	iov[1].iov_base = (void*)fstype;
-	iov[1].iov_len = strlen(fstype) + 1;
-	iov[2].iov_base = (void*)"fspath";
-	iov[2].iov_len = strlen("fspath") + 1;
-	iov[3].iov_base = (void*)dir;
-	iov[3].iov_len = strlen(dir) + 1;
-	iov[4].iov_base = (void*)"from";
-	iov[4].iov_len = strlen("from") + 1;
-	iov[5].iov_base = (void*)device;
-	iov[5].iov_len = strlen(device) + 1;
-	/* The underlying fs driver may require a
-	   buffer for an error message, even if we
-	   do not use it here. */
-	iov[6].iov_base = (void*)"errmsg";
-	iov[6].iov_len = strlen("errmsg") + 1;
-	iov[7].iov_base = errmsg;
-	iov[7].iov_len = strlen(errmsg) + 1;
-	return nmount(iov, iovlen, mntflags);
-#else
-	/* Not implemented for this OS, no specific errno. */
-	errno = 0;
-	return -1;
-#endif
-}
-
-int swupdate_umount(const char *dir)
-{
-#if defined(__linux__)
-	return umount(dir);
-#elif defined(__FreeBSD__)
-	int mntflags = 0;
-	return unmount(dir, mntflags);
-#else
-	/* Not implemented for this OS, no specific errno. */
-	errno = 0;
-	return -1;
-#endif
-}
-
-/*
- * Date time in SWUpdate
- * @return : date in ISO8601 (it must be freed by caller)
- */
-char *swupdate_time_iso8601(void)
-{
-	#define DATE_SIZE_ISO8601	128
-	struct timeval now;
-	int ms;
-	char msbuf[4];
-	/* date length is fix, reserve enough space */
-	char *buf = (char *)malloc(DATE_SIZE_ISO8601);
-
-	if (!buf)
-		return NULL;
-
-	gettimeofday(&now, NULL);
-	ms = now.tv_usec / 1000;
-
-	(void)strftime(buf, DATE_SIZE_ISO8601, "%Y-%m-%dT%T.***%z", localtime(&now.tv_sec));
-
-	/*
-	 * Replace '*' placeholder with ms value
-	 */
-	snprintf(msbuf, sizeof(msbuf), "%03d", ms);
-	memcpy(strchr(buf, '*'), msbuf, 3);
-
-	/*
-	 * strftime add 4 bytes for timezone, ISO8601 uses
-	 * +hh notation. Drop the last two bytes.
-	 */
-	buf[strlen(buf) - 2] = '\0';
-
-	return buf;
 }
