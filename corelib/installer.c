@@ -225,10 +225,10 @@ int install_single_image(struct img_type *img)
 		TRACE("Image Type %s not supported", img->type);
 		return -1;
 	}
-	TRACE("RD:Found installer for stream %s %s", img->fname, hnd->desc);
+	TRACE("RD1:Found installer for stream %s %s", img->fname, hnd->desc);
 
 	swupdate_progress_inc_step(img->fname);
-	TRACE("RD:crossed swupdate_progress_incstep");
+	TRACE("RD1:crossed swupdate_progress_incstep");
 
 	/* TODO : check callback to push results / progress */
 	ret = hnd->installer(img, hnd->data);

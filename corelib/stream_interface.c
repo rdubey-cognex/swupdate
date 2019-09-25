@@ -187,7 +187,7 @@ static int extract_files(int fd, struct swupdate_cfg *software)
 					break;
 			}
 
-			TRACE("RD:Found file:\n\tfilename %s\n\tsize %u %s",
+			TRACE("RD1:Found file:\n\tfilename %s\n\tsize %u %s",
 				fdh.filename,
 				(unsigned int)fdh.size,
 				(skip == SKIP_FILE ? "Not required: skipping" : "required"));
