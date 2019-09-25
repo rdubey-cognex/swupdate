@@ -229,7 +229,7 @@ int install_single_image(struct img_type *img)
 
 	swupdate_progress_inc_step(img->fname);
 	TRACE("RD1:crossed swupdate_progress_incstep");
-
+	TRACE("RD1:description of handler%s",hnd->desc);
 	/* TODO : check callback to push results / progress */
 	ret = hnd->installer(img, hnd->data);
 	TRACE("returned:%d",ret);
