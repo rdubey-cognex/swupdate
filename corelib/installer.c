@@ -219,6 +219,7 @@ int install_single_image(struct img_type *img)
 {
 	struct installer_handler *hnd;
 	int ret;
+	TRACE("RD2:description of handler2:%s",img->type);
 
 	hnd = find_handler(img);
 	if (!hnd) {
@@ -226,10 +227,11 @@ int install_single_image(struct img_type *img)
 		return -1;
 	}
 	TRACE("RD1:Found installer for stream %s %s", img->fname, hnd->desc);
+	TRACE("RD2:description of handler2:%s",hnd->desc);
 
 	swupdate_progress_inc_step(img->fname);
 	TRACE("RD1:crossed swupdate_progress_incstep");
-	TRACE("RD1:description of handler%s",hnd->desc);
+
 	/* TODO : check callback to push results / progress */
 	ret = hnd->installer(img, hnd->data);
 	TRACE("returned:%d",ret);
