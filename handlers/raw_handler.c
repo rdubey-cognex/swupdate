@@ -23,6 +23,7 @@ void raw_filecopy_handler(void);
 static int install_raw_image(struct img_type *img,
 	void __attribute__ ((__unused__)) *data)
 {
+	TRACE("RD3:1");
 	int ret;
 	int fdout;
 
@@ -32,8 +33,11 @@ static int install_raw_image(struct img_type *img,
 				img->device, strerror(errno));
 		return -1;
 	}
+	TRACE("RD3:2");
 	
 	ret = copyimage(&fdout, img, NULL);
+
+	TRACE("RD3:3");
 
 	close(fdout);
 	return ret;

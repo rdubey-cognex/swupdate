@@ -262,6 +262,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 	int skip_file, int __attribute__ ((__unused__)) compressed,
 	uint32_t *checksum, unsigned char *hash, int encrypted, writeimage callback)
 {
+	TRACE("RD3a:1");
 	unsigned int percent, prevpercent = 0;
 	int ret = 0;
 	int len;
@@ -304,10 +305,12 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 	PipelineStep step = NULL;
 	void *state = NULL;
 	uint8_t buffer[BUFF_SIZE];
+	TRACE("RD3a:2");
 
 	if (!callback) {
 		callback = copy_write;
 	}
+	TRACE("RD3a:3");
 
 	if (checksum)
 		*checksum = 0;
@@ -317,6 +320,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 		if (!input_state.dgst)
 			return -EFAULT;
 	}
+	TRACE("RD3a:4");
  
 	if (encrypted) {
 		aes_key = get_aes_key();
@@ -329,6 +333,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 			goto copyfile_exit;
 		}
 	}
+	TRACE("RD3a:5");
 
 	if (compressed) {
 #ifdef CONFIG_GUNZIP
@@ -348,6 +353,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 		goto copyfile_exit;
 #endif
 	}
+	TRACE("RD3a:6");
 
 	if (seek) {
 		int fdout = (out != NULL) ? *(int *)out : -1;
@@ -358,6 +364,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 			goto copyfile_exit;
 		}
 	}
+	TRACE("RD3a:7");
 
 #ifdef CONFIG_GUNZIP
 	if (compressed) {
@@ -386,6 +393,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 #ifdef CONFIG_GUNZIP
 	}
 #endif
+	TRACE("RD3a:8");
 
 	for (;;) {
 		ret = step(state, buffer, sizeof buffer);
@@ -423,6 +431,7 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 			goto copyfile_exit;
 		}
 
+	TRACE("RD3a:9");
 
 		/*
 		 * Now check if the computed hash is equal
@@ -441,8 +450,10 @@ int copyfile(int fdin, void *out, unsigned int nbytes, unsigned long *offs, unsi
 			goto copyfile_exit;
 		}
 	}
+	TRACE("RD3a:10");
 
 	fill_buffer(fdin, buffer, NPAD_BYTES(*offs), offs, checksum, NULL);
+	TRACE("RD3a:11");
 
 	if (checksum != NULL) {
 		*checksum = input_state.checksum;
@@ -462,6 +473,7 @@ copyfile_exit:
 		inflateEnd(&gunzip_state.strm);
 	}
 #endif
+	TRACE("RD3a:12");
 
 	return ret;
 }

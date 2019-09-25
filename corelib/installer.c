@@ -222,7 +222,7 @@ int install_single_image(struct img_type *img)
 	char last = img->type[SWUPDATE_GENERAL_STRING_SIZE-1] ;
 	img->type[SWUPDATE_GENERAL_STRING_SIZE-1] = '\0' ;
 
-	TRACE("RD2:description of handler2:%s",img->type);
+	TRACE("RD3:description of handler2:%s",img->type);
 	img->type[SWUPDATE_GENERAL_STRING_SIZE-1] = last;
 
 	hnd = find_handler(img);
@@ -230,11 +230,11 @@ int install_single_image(struct img_type *img)
 		TRACE("Image Type %s not supported", img->type);
 		return -1;
 	}
-	TRACE("RD2:Found installer for stream %s %s", img->fname, hnd->desc);
-	TRACE("RD2:description of handler2:%s",hnd->desc);
+	TRACE("RD3:Found installer for stream %s %s", img->fname, hnd->desc);
+	TRACE("RD3:description of handler2:%s",hnd->desc);
 
 	swupdate_progress_inc_step(img->fname);
-	TRACE("RD2:crossed swupdate_progress_incstep");
+	TRACE("RD3:crossed swupdate_progress_incstep");
 
 	/* TODO : check callback to push results / progress */
 	ret = hnd->installer(img, hnd->data);
@@ -246,7 +246,7 @@ int install_single_image(struct img_type *img)
 	}
 
 	swupdate_progress_step_completed();
-	TRACE("RD:crossed swupdate_progress_completed");
+	TRACE("RD3:crossed swupdate_progress_completed");
 
 	return ret;
 }
